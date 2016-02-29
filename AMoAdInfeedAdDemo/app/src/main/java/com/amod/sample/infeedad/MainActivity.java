@@ -1,10 +1,8 @@
 package com.amod.sample.infeedad;
 
 import android.content.Context;
-import android.graphics.Canvas;
-import android.graphics.drawable.Drawable;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
@@ -16,26 +14,27 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.amoad.AMoAdBuildConfig;
 import com.amoad.AMoAdLogger;
 import com.amoad.AdItem;
 import com.amoad.AdList;
 import com.amoad.AdResult;
 import com.amoad.InfeedAd;
 import com.amoad.InfeedAdLoadListener;
+import com.squareup.picasso.Picasso;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
-    // TODO [SDK] 管理画面から取得したsidを入力してください
+    // TODO 1.管理画面から取得したsidを入力してください
     private static final String SID = "62056d310111552c000000000000000000000000000000000000000000000000";
-
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
-    private RecyclerViewAdapter mAdapter;
+    private ItemViewAdapter mAdapter;
     private ItemLoadTask mTask;
 
     @Override
@@ -43,71 +42,78 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mAdapter = new RecyclerViewAdapter();
+        AMoAdLogger.getInstance().setEnabled(true);
+        mAdapter = new ItemViewAdapter(this);
 
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
-        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(layoutManager);
-        recyclerView.addItemDecoration(new GrayDividerItemDecoration(this));
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        recyclerView.addItemDecoration(new DividerItemDecoration(this));
         recyclerView.setAdapter(mAdapter);
 
-        moreItems();
+        appendItems();
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add("moreItems");
-        menu.add("clearItems");
-        menu.add("refreshItems");
-        return super.onCreateOptionsMenu(menu);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        if ("moreItems".equals(item.getTitle())) {
-            moreItems();
-        } else if ("clearItems".equals(item.getTitle())) {
-            mAdapter.clear();
-        } else if ("refreshItems".equals(item.getTitle())) {
-            mAdapter.clear();
-            moreItems();
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    private void moreItems() {
+    void appendItems() {
         if (mTask == null) {
             mTask = new ItemLoadTask();
             mExecutor.execute(mTask);
         }
     }
 
+    void clearItems() {
+        mAdapter.clear();
+    }
+
+    void refreshItems() {
+        clearItems();
+        appendItems();
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        menu.add("AppendItems");
+        menu.add("ClearItems");
+        menu.add("RefreshItems");
+        return super.onCreateOptionsMenu(menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if ("AppendItems".equals(item.getTitle())) {
+            appendItems();
+        } else if ("ClearItems".equals(item.getTitle())) {
+            clearItems();
+        } else if ("RefreshItems".equals(item.getTitle())) {
+            refreshItems();
+        }
+        return super.onOptionsItemSelected(item);
+    }
+
     class ItemLoadTask implements Runnable {
+
         @Override
         public void run() {
-            final List<MyItem> items = new ArrayList<MyItem>();
 
             //アイテム取得
-            for (int i = 0; i < 20; i++) {
-                items.add(new MyItem("http://xxxx.yyy/thumbnail.png", "Title " + i, "Desciption " + i, "Date " + i));
-            }
+            final List<MyItem> items = getMyItems();
 
-            //広告取得
+            //TODO 2.広告を取得する
             InfeedAd.load(getApplicationContext(), SID, new InfeedAdLoadListener() {
                 @Override
                 public void onLoad(AdList adList, AdResult adResult) {
-                    Log.d("TAG", "onLoad()" + adResult);
-
                     switch (adResult) {
                         case Success:
-                            //TODO 空広取得成功
-                            mAdapter.addItems(mergeAds(items, adList));
+                            Log.d("TAG", "広告取得成功");
+
+                            //TODO 3.広告をデータにマージする
+                            mAdapter.addItems(mergeAdItems(items, adList));
+                            break;
                         case Empty:
-                            //TODO 空広告(配信されている広告がない)
+                            Log.d("TAG", "空広告");
                             break;
                         case Failure:
                         default:
-                            //TODO 空広取得失敗
+                            Log.d("TAG", "広告取得失敗");
                     }
                     mTask = null;
                 }
@@ -115,31 +121,23 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    static List<Object> mergeAds(List<MyItem> items, AdList adList) {
-        List<Object> result = new ArrayList<Object>();
-
-        List<AdItem> ads = adList.getAdItemList();
-        Iterator<AdItem> adIterator = ads.iterator();
-        int beginIndex = adList.getBeginIndex();
-        int interval = adList.getInterval();
-
-        Log.d("TAG", String.format("beginIndex:%s, interval:%s, adCount:%s", beginIndex, interval, adList.getAdItemList().size()));
-
-        int n = items.size() + ads.size();
-        Iterator<MyItem> itemIterator = items.iterator();
-        for (int i = 0; i < n; i++) {
-            if (isAdPosition(i, beginIndex, interval) && adIterator.hasNext()) {
-                result.add(adIterator.next());
-            } else if (itemIterator.hasNext()) {
-                result.add(itemIterator.next());
-            }
+    private List<MyItem> getMyItems() {
+        SimpleDateFormat dateFormat = new SimpleDateFormat("<yyyy/MM/dd hh:mm ss>");
+        Date now = new Date();
+        final List<MyItem> items = new ArrayList<MyItem>();
+        for (int i = 0; i < 10; i++) {
+            items.add(new MyItem("http://xxxx.yyy/thumbnail.png", "Title-" + i, "Desciption-" + i, "" + dateFormat.format(now)));
         }
-
-        return result;
+        return items;
     }
 
-    static class RecyclerViewAdapter extends RecyclerView.Adapter<ItemViewHolder> {
-        List<Object> mItems = new ArrayList<Object>();
+    static class ItemViewAdapter extends RecyclerView.Adapter<ItemViewHolder> {
+        final List<Object> mItems = new ArrayList<Object>();
+        final Context mContext;
+
+        ItemViewAdapter(Context context) {
+            mContext = context;
+        }
 
         public void addItems(List<Object> items) {
             mItems.addAll(items);
@@ -175,18 +173,18 @@ public class MainActivity extends AppCompatActivity {
         public void onBindViewHolder(ItemViewHolder vh, int position) {
             Object item = mItems.get(position);
             if (item instanceof AdItem) {
-                onBindViewHolder(vh, (AdItem) item);
+                bindAdItem(vh, (AdItem) item);
             } else if (item instanceof MyItem) {
-                onBindViewHolder(vh, (MyItem) item);
+                bindMyItem(vh, (MyItem) item);
             }
         }
 
-        private void onBindViewHolder(ItemViewHolder vh, final AdItem adItem) {
-            //TODO 広告用画像をダウンロードしてImageViewに設定する
-            String imageUrl = adItem.getImageUrl();
+        private void bindAdItem(ItemViewHolder vh, final AdItem adItem) {
+            //TODO 4.広告が表示されることをサーバーに通知する
+            adItem.sendImpression();
 
-            // ダウンロードした画像を設定する。サンプルではリソースイメージを使いました。
-            vh.mImageView.setImageResource(R.drawable.ad);
+            //画像を設定
+            Picasso.with(mContext).load(adItem.getImageUrl()).fit().into(vh.mImageView);
             //タイトルショットを設定
             vh.mTitleView.setText(adItem.getTitleShort());
             //タイトルゴングを設定
@@ -197,12 +195,20 @@ public class MainActivity extends AppCompatActivity {
             vh.mItemView.setOnClickListener(new View.OnClickListener() {
                 @Override
                 public void onClick(View v) {
-                    //TODO 広告クリックの遷移処理を行う
+                    //TODO 5.クリック処理を行う
                     adItem.onClick();
 
                     /*
-                    //TODO または 指定スキームのクリック処理をカスタムする
-                    adItem.onClickWithCustomScheme("scheme", new AdClickListener() {
+                    //指定スキームのクリック処理をカスタムする
+                    //content, geo, file, tel, voicemail, sms, smsto, mms, mmsto 以外のスキムを設定してください
+                    adItem.onClickWithCustomScheme("scheme1", new AdClickListener() {
+                        @Override
+                        public void onClick(String url) {
+                            //...
+                        }
+                    });
+
+                    adItem.onClickWithCustomSchemes(new String[]{"scheme1", "scheme2"}, new AdClickListener() {
                         @Override
                         public void onClick(String url) {
                             //...
@@ -213,7 +219,7 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        private void onBindViewHolder(ItemViewHolder vh, MyItem item) {
+        private void bindMyItem(ItemViewHolder vh, MyItem item) {
             vh.mImageView.setImageResource(R.drawable.item);
             vh.mTitleView.setText(item.mTitle);
             vh.mDescriptionView.setText(item.mDescription);
@@ -225,7 +231,6 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
         }
-
     }
 
     static class ItemViewHolder extends RecyclerView.ViewHolder {
@@ -259,34 +264,28 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    static class GrayDividerItemDecoration extends RecyclerView.ItemDecoration {
-        private Drawable mDivider;
+    public static List<Object> mergeAdItems(List<MyItem> items, AdList adList) {
+        List<Object> result = new ArrayList<Object>();
 
-        public GrayDividerItemDecoration(Context context) {
-            mDivider = context.getResources().getDrawable(R.drawable.line_divider);
-        }
+        List<AdItem> ads = adList.getAdItemList();
+        Iterator<AdItem> adIterator = ads.iterator();
+        int beginIndex = adList.getBeginIndex();
+        int interval = adList.getInterval();
 
-        @Override
-        public void onDrawOver(Canvas c, RecyclerView parent, RecyclerView.State state) {
-            int left = parent.getPaddingLeft();
-            int right = parent.getWidth() - parent.getPaddingRight();
-
-            int childCount = parent.getChildCount();
-            for (int i = 0; i < childCount; i++) {
-                View child = parent.getChildAt(i);
-
-                RecyclerView.LayoutParams params = (RecyclerView.LayoutParams) child.getLayoutParams();
-
-                int top = child.getBottom() + params.bottomMargin;
-                int bottom = top + mDivider.getIntrinsicHeight();
-
-                mDivider.setBounds(left, top, right, bottom);
-                mDivider.draw(c);
+        int totalCount = items.isEmpty() ? 0 : items.size() + ads.size();
+        Iterator<MyItem> itemIterator = items.iterator();
+        for (int i = 0; i < totalCount; i++) {
+            if (isAdPosition(i, beginIndex, interval) && adIterator.hasNext()) {
+                result.add(adIterator.next());
+            } else if (itemIterator.hasNext()) {
+                result.add(itemIterator.next());
             }
         }
+
+        return result;
     }
 
-    static boolean isAdPosition(int position, int beginIndex, int interval) {
+    public static boolean isAdPosition(int position, int beginIndex, int interval) {
         if (beginIndex < 0) {
             return false;
         }
