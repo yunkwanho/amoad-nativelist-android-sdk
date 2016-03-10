@@ -16,7 +16,6 @@ import android.widget.TextView;
 
 import com.amoad.AdItem;
 import com.amoad.AdList;
-import com.amoad.AdRequest;
 import com.amoad.AdResult;
 import com.amoad.InfeedAd;
 import com.amoad.InfeedAdLoadListener;
@@ -42,9 +41,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //広告取得の制限時間を設定する
-        AdRequest.setConnectTimeout(5);//5秒
-        AdRequest.setReadTimeout(5);//5秒
+        //ネットワーク通信の制限時間を設定する
+        InfeedAd.setNetworkTimeoutMillis(5000);//５秒
 
         mAdapter = new ItemViewAdapter(this);
 
