@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.amoad.AdClickListener;
 import com.amoad.AdItem;
 import com.amoad.AdList;
 import com.amoad.AdResult;
@@ -199,20 +200,32 @@ public class MainActivity extends AppCompatActivity {
                     //TODO 5.クリック処理を行う
                     adItem.onClick();
 
+                    //指定スキーム(単数)のクリック処理をハンドリングする
                     /*
-                    //指定スキームのクリック処理をカスタムする
-                    //content, geo, file, tel, voicemail, sms, smsto, mms, mmsto 以外のスキムを設定してください
                     adItem.onClickWithCustomScheme("scheme1", new AdClickListener() {
                         @Override
                         public void onClick(String url) {
-                            //...
+                            //ハンドリング
                         }
                     });
+                    */
 
-                    adItem.onClickWithCustomSchemes(new String[]{"scheme1", "scheme2"}, new AdClickListener() {
+                    //指定スキーム(複数)のクリック処理をハンドリングする
+                    /*
+                    adItem.onClickWithCustomSchemes(new String[]{"scheme1", "scheme2", "scheme3"}, new AdClickListener() {
                         @Override
                         public void onClick(String url) {
-                            //...
+                            //ハンドリング
+                        }
+                    });
+                    */
+
+                    //すべてのクリック処理をハンドリングする
+                    /*
+                    adItem.onClickWithHandler(new AdClickListener() {
+                        @Override
+                        public void onClick(String url) {
+                            //ハンドリング
                         }
                     });
                     */
