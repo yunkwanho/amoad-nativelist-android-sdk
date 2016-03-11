@@ -42,6 +42,9 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //本番以外の環境でテストを行うためのサンプルコード
+        //InfeedAd.setAdRequestUrl("http://xxx");
+
         //ネットワーク通信の制限時間を設定する
         InfeedAd.setNetworkTimeoutMillis(5000);//５秒
 
