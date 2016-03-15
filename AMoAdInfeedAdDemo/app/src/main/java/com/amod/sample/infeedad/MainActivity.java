@@ -8,14 +8,17 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.amoad.AMoAdView;
 import com.amoad.AdClickListener;
 import com.amoad.AdItem;
 import com.amoad.AdList;
@@ -34,7 +37,9 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     // TODO 1.管理画面から取得したsidを入力してください
-    private static final String SID = "62056d310111552c000000000000000000000000000000000000000000000000";
+    private static final String INFEED_SID = "62056d310111552c000000000000000000000000000000000000000000000000";
+    private static final String BANNER_SID = "62056d310111552c000000000000000000000000000000000000000000000000";
+
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
     private ItemViewAdapter mAdapter;
     private ItemLoadTask mTask;
@@ -43,7 +48,57 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        initBanner(savedInstanceState);
+        initInfeed(savedInstanceState);
+    }
 
+    private void initBanner(Bundle savedInstanceState) {
+        AMoAdView amoadView = new AMoAdView(this);
+        //本番以外の環境でテストを行うためのサンプルコード
+        //amoadView.setAdRequestUrl("http://xxx");
+
+        //ネットワーク通信の制限時間を設定する
+        amoadView.setNetworkTimeoutMillis(5000);//５秒
+
+        //すべてのクリック処理をハンドリングする
+        /*
+        amoadView.setAdClickListener(new AdClickListener() {
+            @Override
+            public void onClick(String url) {
+                //ハンドリング
+            }
+        });
+        */
+
+        //指定スキーム(単数)のクリック処理をハンドリングする
+        /*
+        amoadView.setAdClickListenerWithCustomScheme("scheme", new AdClickListener() {
+            @Override
+            public void onClick(String url) {
+                //ハンドリング
+            }
+        });
+        */
+
+        //指定スキーム(複数)のクリック処理をハンドリングする
+        /*
+        amoadView.setAdClickListenerWithCustomSchemes(new String[]{"scheme1", "scheme1"}, new AdClickListener() {
+            @Override
+            public void onClick(String url) {
+                //ハンドリング
+            }
+        });
+        */
+
+        amoadView.setSid(BANNER_SID);
+
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2);
+        lp.gravity = Gravity.CENTER;
+        FrameLayout content = (FrameLayout) findViewById(R.id.banner);
+        content.addView(amoadView, lp);
+    }
+
+    private void initInfeed(Bundle savedInstanceState) {
         //本番以外の環境でテストを行うためのサンプルコード
         //InfeedAd.setAdRequestUrl("http://xxx");
 
@@ -119,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
             final List<MyItem> items = getMyItems();
 
             //TODO 2.広告を取得する
-            InfeedAd.load(getApplicationContext(), SID, new InfeedAdLoadListener() {
+            InfeedAd.load(getApplicationContext(), INFEED_SID, new InfeedAdLoadListener() {
                 @Override
                 public void onLoad(AdList adList, AdResult adResult) {
                     switch (adResult) {
