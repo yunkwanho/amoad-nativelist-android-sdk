@@ -2,6 +2,8 @@ package com.amod.sample.infeedad;
 
 import android.content.Context;
 import android.os.Bundle;
+import android.os.Parcel;
+import android.os.Parcelable;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
@@ -55,7 +57,21 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.addItemDecoration(new DividerItemDecoration(this));
         recyclerView.setAdapter(mAdapter);
 
-        appendItems();
+        if (savedInstanceState == null) {
+            appendItems();
+        }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putParcelableArrayList("items", new ArrayList<Parcelable>(mAdapter.getItems()));
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        mAdapter.addItems(savedInstanceState.getParcelableArrayList("items"));
     }
 
     void appendItems() {
@@ -130,23 +146,27 @@ public class MainActivity extends AppCompatActivity {
         SimpleDateFormat dateFormat = new SimpleDateFormat("<yyyy/MM/dd hh:mm ss>");
         Date now = new Date();
         final List<MyItem> items = new ArrayList<MyItem>();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 5; i++) {
             items.add(new MyItem("http://xxxx.yyy/thumbnail.png", "Title-" + i, "Desciption-" + i, "" + dateFormat.format(now)));
         }
         return items;
     }
 
     static class ItemViewAdapter extends RecyclerView.Adapter<ItemViewHolder> {
-        final List<Object> mItems = new ArrayList<Object>();
+        final List<Parcelable> mItems = new ArrayList<Parcelable>();
         final Context mContext;
 
         ItemViewAdapter(Context context) {
             mContext = context;
         }
 
-        public void addItems(List<Object> items) {
+        public void addItems(List<Parcelable> items) {
             mItems.addAll(items);
             notifyDataSetChanged();
+        }
+
+        public List<Parcelable> getItems() {
+            return mItems;
         }
 
         public void clear() {
@@ -176,7 +196,7 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(ItemViewHolder vh, int position) {
-            Object item = mItems.get(position);
+            Parcelable item = mItems.get(position);
             if (item instanceof AdItem) {
                 bindAdItem(vh, (AdItem) item);
             } else if (item instanceof MyItem) {
@@ -186,7 +206,7 @@ public class MainActivity extends AppCompatActivity {
 
         private void bindAdItem(ItemViewHolder vh, final AdItem adItem) {
             //TODO 4.広告が表示されることをサーバーに通知する
-            adItem.sendImpression();
+            adItem.sendImpression(mContext);
 
             //画像を設定
             Picasso.with(mContext).load(adItem.getImageUrl()).fit().into(vh.mImageView);
@@ -201,11 +221,11 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onClick(View v) {
                     //TODO 5.クリック処理を行う
-                    adItem.onClick();
+                    adItem.onClick(mContext);
 
                     //指定スキーム(単数)のクリック処理をハンドリングする
                     /*
-                    adItem.onClickWithCustomScheme("scheme1", new AdClickListener() {
+                    adItem.onClickWithCustomScheme(mContext, "scheme1", new AdClickListener() {
                         @Override
                         public void onClick(String url) {
                             //ハンドリング
@@ -215,7 +235,7 @@ public class MainActivity extends AppCompatActivity {
 
                     //指定スキーム(複数)のクリック処理をハンドリングする
                     /*
-                    adItem.onClickWithCustomSchemes(new String[]{"scheme1", "scheme2", "scheme3"}, new AdClickListener() {
+                    adItem.onClickWithCustomSchemes(mContext, new String[]{"scheme1", "scheme2", "scheme3"}, new AdClickListener() {
                         @Override
                         public void onClick(String url) {
                             //ハンドリング
@@ -225,7 +245,7 @@ public class MainActivity extends AppCompatActivity {
 
                     //すべてのクリック処理をハンドリングする
                     /*
-                    adItem.onClickWithHandler(new AdClickListener() {
+                    adItem.onClickWithHandler(mContext, new AdClickListener() {
                         @Override
                         public void onClick(String url) {
                             //ハンドリング
@@ -267,7 +287,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    static class MyItem {
+    static class MyItem implements Parcelable {
         String mImageUrl;
         String mTitle;
         String mDescription;
@@ -279,10 +299,42 @@ public class MainActivity extends AppCompatActivity {
             mDescription = description;
             mDate = date;
         }
+
+        protected MyItem(Parcel in) {
+            mImageUrl = in.readString();
+            mTitle = in.readString();
+            mDescription = in.readString();
+            mDate = in.readString();
+        }
+
+        public static final Creator<MyItem> CREATOR = new Creator<MyItem>() {
+            @Override
+            public MyItem createFromParcel(Parcel in) {
+                return new MyItem(in);
+            }
+
+            @Override
+            public MyItem[] newArray(int size) {
+                return new MyItem[size];
+            }
+        };
+
+        @Override
+        public int describeContents() {
+            return 0;
+        }
+
+        @Override
+        public void writeToParcel(Parcel dest, int flags) {
+            dest.writeString(mImageUrl);
+            dest.writeString(mTitle);
+            dest.writeString(mDescription);
+            dest.writeString(mDate);
+        }
     }
 
-    public static List<Object> mergeAdItems(List<MyItem> items, AdList adList) {
-        List<Object> result = new ArrayList<Object>();
+    public static List<Parcelable> mergeAdItems(List<MyItem> items, AdList adList) {
+        List<Parcelable> result = new ArrayList<Parcelable>();
 
         List<AdItem> ads = adList.getAdItemList();
         Iterator<AdItem> adIterator = ads.iterator();
