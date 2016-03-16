@@ -8,23 +8,20 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.util.Log;
-import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.FrameLayout;
 import android.widget.ImageView;
 import android.widget.TextView;
 
-import com.amoad.AMoAdView;
-import com.amoad.AdClickListener;
 import com.amoad.AdItem;
 import com.amoad.AdList;
 import com.amoad.AdResult;
 import com.amoad.InfeedAd;
 import com.amoad.InfeedAdLoadListener;
+import com.squareup.picasso.Callback;
 import com.squareup.picasso.Picasso;
 
 import java.text.SimpleDateFormat;
@@ -37,99 +34,110 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
     // TODO 1.管理画面から取得したsidを入力してください
-    private static final String INFEED_SID = "62056d310111552c000000000000000000000000000000000000000000000000";
-    private static final String BANNER_SID = "62056d310111552c000000000000000000000000000000000000000000000000";
+    private static final String SID1 = "62056d310111552c000000000000000000000000000000000000000000000000";
+    private static final String SID2 = "62056d310111552c000000000000000000000000000000000000000000000000";
 
     private final ExecutorService mExecutor = Executors.newSingleThreadExecutor();
     private ItemViewAdapter mAdapter;
     private ItemLoadTask mTask;
+    private Parcelable mBannerItem;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        initBanner(savedInstanceState);
-        initInfeed(savedInstanceState);
-    }
 
-    private void initBanner(Bundle savedInstanceState) {
-        AMoAdView amoadView = new AMoAdView(this);
-        //本番以外の環境でテストを行うためのサンプルコード
-        //amoadView.setAdRequestUrl("http://xxx");
-
-        //ネットワーク通信の制限時間を設定する
-        amoadView.setNetworkTimeoutMillis(5000);//５秒
-
-        //すべてのクリック処理をハンドリングする
-        /*
-        amoadView.setAdClickListener(new AdClickListener() {
-            @Override
-            public void onClick(String url) {
-                //ハンドリング
-            }
-        });
-        */
-
-        //指定スキーム(単数)のクリック処理をハンドリングする
-        /*
-        amoadView.setAdClickListenerWithCustomScheme("scheme", new AdClickListener() {
-            @Override
-            public void onClick(String url) {
-                //ハンドリング
-            }
-        });
-        */
-
-        //指定スキーム(複数)のクリック処理をハンドリングする
-        /*
-        amoadView.setAdClickListenerWithCustomSchemes(new String[]{"scheme1", "scheme1"}, new AdClickListener() {
-            @Override
-            public void onClick(String url) {
-                //ハンドリング
-            }
-        });
-        */
-
-        amoadView.setSid(BANNER_SID);
-
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(-2, -2);
-        lp.gravity = Gravity.CENTER;
-        FrameLayout content = (FrameLayout) findViewById(R.id.banner);
-        content.addView(amoadView, lp);
-    }
-
-    private void initInfeed(Bundle savedInstanceState) {
         //本番以外の環境でテストを行うためのサンプルコード
         //InfeedAd.setAdRequestUrl("http://xxx");
 
         //ネットワーク通信の制限時間を設定する
         InfeedAd.setNetworkTimeoutMillis(5000);//５秒
 
-        mAdapter = new ItemViewAdapter(this);
+        initListView();
 
+        if (savedInstanceState == null) {
+            loadBanner();
+            loadItems();
+        }
+    }
+
+    private void initListView() {
+        mAdapter = new ItemViewAdapter(this);
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.addItemDecoration(new DividerItemDecoration(this));
         recyclerView.setAdapter(mAdapter);
+    }
 
-        if (savedInstanceState == null) {
-            appendItems();
-        }
+    private void loadBanner() {
+        InfeedAd.load(getApplicationContext(), SID2, new InfeedAdLoadListener() {
+            @Override
+            public void onLoad(AdList adList, AdResult adResult) {
+                switch (adResult) {
+                    case Success:
+                        Log.d("TAG", "広告取得成功");
+                        if (!adList.getAdItemList().isEmpty()) {
+                            bindAdItem(adList.getAdItemList().get(0));
+                        }
+                        break;
+                    case Empty:
+                        Log.d("TAG", "空広告");
+                        break;
+                    case Failure:
+                    default:
+                        Log.d("TAG", "広告取得失敗");
+                }
+                mTask = null;
+            }
+        });
+    }
+
+    private void bindAdItem(final AdItem adItem) {
+        mBannerItem = adItem;
+
+        //画像を設定
+        ImageView banner = (ImageView) findViewById(R.id.banner);
+        Picasso.with(this)
+                .load(adItem.getImageUrl())
+                .into(banner, new Callback() {
+                    @Override
+                    public void onSuccess() {
+                        //広告が表示されることをサーバーに通知する
+                        adItem.sendImpression(MainActivity.this);
+
+                        ImageView banner = (ImageView) findViewById(R.id.banner);
+                        banner.setVisibility(View.VISIBLE);
+                        banner.setOnClickListener(new View.OnClickListener() {
+                            @Override
+                            public void onClick(View v) {
+                                //クリック処理を行う
+                                adItem.onClick(MainActivity.this);
+                            }
+                        });
+                    }
+
+                    @Override
+                    public void onError() {
+                    }
+                });
+
     }
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
+        outState.putParcelable("item", mBannerItem);
         outState.putParcelableArrayList("items", new ArrayList<Parcelable>(mAdapter.getItems()));
     }
 
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         super.onRestoreInstanceState(savedInstanceState);
+        bindAdItem((AdItem) savedInstanceState.getParcelable("item"));
         mAdapter.addItems(savedInstanceState.getParcelableArrayList("items"));
     }
 
-    void appendItems() {
+    void loadItems() {
         if (mTask == null) {
             mTask = new ItemLoadTask();
             mExecutor.execute(mTask);
@@ -142,25 +150,28 @@ public class MainActivity extends AppCompatActivity {
 
     void refreshItems() {
         clearItems();
-        appendItems();
+        loadItems();
     }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
-        menu.add("AppendItems");
+        menu.add("AddItems");
         menu.add("ClearItems");
         menu.add("RefreshItems");
+        menu.add("RefreshBanner");
         return super.onCreateOptionsMenu(menu);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if ("AppendItems".equals(item.getTitle())) {
-            appendItems();
+        if ("AddItems".equals(item.getTitle())) {
+            loadItems();
         } else if ("ClearItems".equals(item.getTitle())) {
             clearItems();
         } else if ("RefreshItems".equals(item.getTitle())) {
             refreshItems();
+        } else if ("RefreshBanner".equals(item.getTitle())) {
+            loadBanner();
         }
         return super.onOptionsItemSelected(item);
     }
@@ -174,7 +185,7 @@ public class MainActivity extends AppCompatActivity {
             final List<MyItem> items = getMyItems();
 
             //TODO 2.広告を取得する
-            InfeedAd.load(getApplicationContext(), INFEED_SID, new InfeedAdLoadListener() {
+            InfeedAd.load(getApplicationContext(), SID1, new InfeedAdLoadListener() {
                 @Override
                 public void onLoad(AdList adList, AdResult adResult) {
                     switch (adResult) {
