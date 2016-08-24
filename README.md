@@ -2,7 +2,7 @@
 <img width="172" height="61" src="http://www.amoad.com/images/logo.png">
 </div>
 
-# AMoAd InfeedAd Demo for Android ver4.8.0
+# AMoAd InfeedAd Demo for Android ver4.10.0
 
 <img height="300" src="docs/res/ScreenShot01.png">
 <img height="300" src="docs/res/ScreenShot02.png">

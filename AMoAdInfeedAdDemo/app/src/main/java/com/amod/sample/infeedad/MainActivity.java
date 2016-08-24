@@ -61,6 +61,13 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @Override
+    protected void onDestroy() {
+        // TODO 6.ビューの監視を解除する
+        InfeedAd.clearVisiblityTracking();
+        super.onDestroy();
+    }
+
     private void initListView() {
         mAdapter = new ItemViewAdapter(this);
         RecyclerView recyclerView = (RecyclerView) findViewById(R.id.recyclerView);
@@ -96,14 +103,14 @@ public class MainActivity extends AppCompatActivity {
         mBannerItem = adItem;
 
         //画像を設定
-        ImageView banner = (ImageView) findViewById(R.id.banner);
+        final ImageView banner = (ImageView) findViewById(R.id.banner);
         Picasso.with(this)
                 .load(adItem.getImageUrl())
                 .into(banner, new Callback() {
                     @Override
                     public void onSuccess() {
-                        //広告が表示されることをサーバーに通知する
-                        adItem.sendImpression(MainActivity.this);
+                        //広告ビューを監視する
+                        InfeedAd.setVisiblityTracking(getApplicationContext(), banner, adItem);
 
                         ImageView banner = (ImageView) findViewById(R.id.banner);
                         banner.setVisibility(View.VISIBLE);
@@ -263,17 +270,18 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(ItemViewHolder vh, int position) {
             Parcelable item = mItems.get(position);
+            AdItem adItem = null;
             if (item instanceof AdItem) {
-                bindAdItem(vh, (AdItem) item);
+                adItem = (AdItem) item;
+                bindAdItem(vh, adItem);
             } else if (item instanceof MyItem) {
                 bindMyItem(vh, (MyItem) item);
             }
+            //TODO 4.広告ビューを監視する
+            InfeedAd.setVisiblityTracking(mContext, vh.itemView, adItem);
         }
 
         private void bindAdItem(ItemViewHolder vh, final AdItem adItem) {
-            //TODO 4.広告が表示されることをサーバーに通知する
-            adItem.sendImpression(mContext);
-
             //画像を設定
             Picasso.with(mContext).load(adItem.getImageUrl()).fit().into(vh.mImageView);
             //タイトルショットを設定
